@@ -100,6 +100,10 @@ textarea{min-height:90px;font-size:.8rem}
 .row.is-done .name{text-decoration:line-through;color:var(--muted)}
 .done.filled{background:var(--accent);border-color:var(--accent)}
 .done.filled svg{stroke:var(--accent-ink)}
+.acts{display:flex;align-items:center;gap:8px}
+.later{height:44px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--muted);font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:4px;padding:0 10px}
+.later svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+@media (max-width:380px){.later span{display:none}}
 .total{font-family:var(--display);font-size:1rem;color:var(--muted);margin:10px 2px 0}
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .35s ease}}
 </style>
@@ -192,10 +196,27 @@ async function connect(){
 let toastTimer;
 function markDone(tid, when){
   const t = S.tasks.find(x => x.id === tid); if (!t) return;
-  const prev = t.last;
-  t.last = when || now();
+  const prev = t.last, prevSnooze = t.snoozeUntil;
+  t.last = when || now(); delete t.snoozeUntil;
   save(); render();
-  showToast("Klart: " + t.name, () => { t.last = prev; save(); render(); });
+  showToast("Klart: " + t.name, () => { t.last = prev; if (prevSnooze) t.snoozeUntil = prevSnooze; save(); render(); });
+}
+const isSnoozed = t => t.snoozeUntil && t.snoozeUntil > Date.now();
+function snoozeText(t){
+  const days = Math.round((t.snoozeUntil - dayStart()) / DAY);
+  return days <= 1 ? "uppskjuten till i morgon" : "uppskjuten till " + new Date(t.snoozeUntil).toLocaleDateString("sv-SE", {weekday:"long"});
+}
+function snooze(tid, days){
+  const t = S.tasks.find(x => x.id === tid); if (!t) return;
+  const prev = t.snoozeUntil, prevIds = S.today ? [...S.today.ids] : null;
+  t.snoozeUntil = dayStart() + days*DAY;
+  if (S.today) S.today.ids = S.today.ids.filter(i => i !== tid);
+  save(); render();
+  showToast(days === 1 ? "Flyttad till i morgon" : "Uppskjuten " + days + " dagar", () => {
+    if (prev) t.snoozeUntil = prev; else delete t.snoozeUntil;
+    if (prevIds && S.today) S.today.ids = prevIds;
+    save(); render();
+  });
 }
 function showToast(msg, undo){
   clearTimeout(toastTimer);
@@ -236,15 +257,17 @@ function setPause(on){
 
 // ---------- rendering ----------
 const ICON_CHECK = `<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
-function taskRow(t, showRoom = true){
-  const r = ratio(t), lv = level(r);
-  return `<div class="row">
+const ICON_LATER = `<svg viewBox="0 0 24 24"><path d="M5 12h12M13 7l5 5-5 5"/></svg>`;
+function taskRow(t, showRoom = true, later = false){
+  const r = ratio(t), lv = level(r), sn = isSnoozed(t);
+  return `<div class="row${later ? " has-later" : ""}">
     <button class="main" data-edit="${t.id}" aria-label="Ändra ${esc(t.name)}">
       <div class="name">${esc(t.name)}</div>
-      <div class="meta"><span>${showRoom ? esc(roomName(t.roomId)) + " · " : ""}${every(t.days)}</span><span class="when t-${lv}">${whenText(t)}</span></div>
+      <div class="meta"><span>${showRoom ? esc(roomName(t.roomId)) + " · " : ""}${every(t.days)}</span><span class="when ${sn ? "" : "t-" + lv}">${sn ? snoozeText(t) : whenText(t)}</span></div>
       <div class="meter"><i class="s-${lv}" style="width:${Math.min(100, Math.max(4, r*100))}%"></i></div>
     </button>
-    <button class="done" data-done="${t.id}" aria-label="Markera ${esc(t.name)} som klar">${ICON_CHECK}</button>
+    <div class="acts">${later ? `<button class="later" data-later="${t.id}" aria-label="Inte idag: flytta ${esc(t.name)} till i morgon">${ICON_LATER}<span>Inte idag</span></button>` : ""}
+    <button class="done" data-done="${t.id}" aria-label="Markera ${esc(t.name)} som klar">${ICON_CHECK}</button></div>
   </div>`;
 }
 function sorted(list){ return [...list].sort((a,b) => ratio(b) - ratio(a)); }
@@ -255,7 +278,7 @@ function dayKey(){ const d = new Date(); return d.getFullYear() + "-" + (d.getMo
 function dayStart(){ const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
 const doneToday = t => t.last >= dayStart();
 function pickToday(){
-  const all = sorted(S.tasks.filter(t => !doneToday(t)));
+  const all = sorted(S.tasks.filter(t => !doneToday(t) && !isSnoozed(t)));
   const plock = all.find(t => t.kind === "plock");
   const ids = plock ? [plock.id] : [];
   let sum = plock ? (plock.min || 5) : 0;
@@ -277,11 +300,11 @@ function todayList(){
 }
 function addOneMore(){
   const have = new Set(S.today.ids);
-  const next = sorted(S.tasks.filter(t => !have.has(t.id) && !doneToday(t)))[0];
+  const next = sorted(S.tasks.filter(t => !have.has(t.id) && !doneToday(t) && !isSnoozed(t)))[0];
   if (next){ S.today.ids.push(next.id); save(); render(); }
 }
 function todayRow(t){
-  if (!doneToday(t)) return taskRow(t);
+  if (!doneToday(t)) return taskRow(t, true, true);
   return `<div class="row is-done"><button class="main" data-edit="${t.id}" aria-label="Ändra ${esc(t.name)}">
       <div class="name">${esc(t.name)}</div><div class="meta"><span>${esc(roomName(t.roomId))}</span><span class="when t-ok">klart</span></div></button>
     <span class="done filled" aria-hidden="true">${ICON_CHECK}</span></div>`;
@@ -301,13 +324,14 @@ function viewNu(){
   if (!S.rooms.length) return emptyState();
   const todayHtml = S.pausedAt ? "" : viewToday();
   const inToday = new Set((!S.pausedAt && S.today && S.today.ids) || []);
-  const all = sorted(S.tasks.filter(t => !inToday.has(t.id)));
+  const all = sorted(S.tasks.filter(t => !inToday.has(t.id) && !isSnoozed(t)));
+  const snoozed = S.tasks.filter(t => !inToday.has(t.id) && isSnoozed(t)).sort((a,b) => a.snoozeUntil - b.snoozeUntil);
   const due = all.filter(t => ratio(t) >= 1), soon = all.filter(t => { const r = ratio(t); return r >= .75 && r < 1; }), later = all.filter(t => ratio(t) < .75);
   const line = due.length ? `${due.length} ${due.length === 1 ? "syssla är" : "sysslor är"} dags nu` : soon.length ? "Inget är försenat. Några saker närmar sig." : "Allt är under kontroll.";
   const sec = (h, l) => l.length ? `<h2>${h}</h2><div class="list">${l.map(t => taskRow(t)).join("")}</div>` : "";
   return `<header><h1>Städkollen</h1>${gear()}</header><p class="sub">${line}</p>${pauseBanner()}
     ${S.pausedAt ? "" : todayHtml}
-    ${sec("Dags nu", due)}${sec("Snart", soon)}${sec("Senare", later)}
+    ${sec("Dags nu", due)}${sec("Snart", soon)}${sec("Senare", later)}${sec("Uppskjutet", snoozed)}
     ${!S.tasks.length ? `<div class="empty"><p>Inga sysslor än. Tryck på plus för att lägga till.</p></div>` : ""}`;
 }
 function viewRum(){
@@ -334,7 +358,7 @@ function viewRum(){
     <div class="btnrow" style="margin-top:16px;justify-content:flex-start"><button class="btn ghost" data-newroom>Nytt rum</button></div>`;
 }
 function viewFokus(){
-  const pool = sorted(S.tasks).filter(t => ratio(t) >= .6);
+  const pool = sorted(S.tasks).filter(t => ratio(t) >= .6 && !isSnoozed(t));
   const pick = []; let sum = 0;
   for (const t of pool){ const m = t.min || 5; if (sum + m <= focusMin){ pick.push(t); sum += m; } }
   const chips = [10,15,30,45].map(m => `<button class="chip" data-min="${m}" aria-pressed="${m === focusMin}">${m} min</button>`).join("");
@@ -386,7 +410,8 @@ function taskSheet(t, roomId){
     <div class="field"><label for="f-min">Tar ungefär (minuter)</label><input id="f-min" type="number" inputmode="numeric" min="1" value="${t.min || 5}"></div>
     ${isNew ? `<div class="field"><label for="f-state">Hur ser det ut nu?</label><select id="f-state"><option value="0">Nyss gjort</option><option value=".5" selected>Halvvägs</option><option value="1">Dags nu</option></select></div>` : ""}
     <div class="btnrow"><button class="btn" id="f-save">Spara</button><button class="btn ghost" id="f-cancel">Avbryt</button></div>
-    ${isNew ? "" : `<h2>Gjorde du det tidigare?</h2><div class="btnrow"><button class="btn ghost" id="f-yday">Klar igår</button><button class="btn ghost" id="f-2d">Klar i förrgår</button></div>
+    ${isNew ? "" : `<h2>Skjut upp</h2><div class="btnrow">${isSnoozed(t) ? `<button class="btn ghost" id="f-unsnooze">Ta tillbaka nu</button>` : ""}<button class="btn ghost" data-sn="1">I morgon</button><button class="btn ghost" data-sn="3">3 dagar</button><button class="btn ghost" data-sn="7">En vecka</button></div>
+    <h2>Gjorde du det tidigare?</h2><div class="btnrow"><button class="btn ghost" id="f-yday">Klar igår</button><button class="btn ghost" id="f-2d">Klar i förrgår</button></div>
     <h2>Ta bort</h2><div class="btnrow"><button class="btn danger" id="f-del">Ta bort sysslan</button></div>`}
   `, el => {
     el.querySelector("#f-cancel").onclick = close;
@@ -400,6 +425,8 @@ function taskSheet(t, roomId){
       save(); close(); render();
     };
     if (!isNew){
+      el.querySelectorAll("[data-sn]").forEach(b => b.onclick = () => { close(); snooze(t.id, +b.dataset.sn); });
+      const un = el.querySelector("#f-unsnooze"); if (un) un.onclick = () => { delete S.tasks.find(x => x.id === t.id).snoozeUntil; save(); close(); render(); };
       el.querySelector("#f-yday").onclick = () => { close(); markDone(t.id, now() - DAY); };
       el.querySelector("#f-2d").onclick = () => { close(); markDone(t.id, now() - 2*DAY); };
       const del = el.querySelector("#f-del");
@@ -479,6 +506,7 @@ document.addEventListener("click", e => {
   else if (d.settings !== undefined) settingsSheet();
   else if (d.unpause !== undefined) setPause(false);
   else if (d.onemore !== undefined) addOneMore();
+  else if (d.later) snooze(d.later, 1);
   else if (b.id === "fab") taskSheet(null, tab === "rum" ? openRoom : null);
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
