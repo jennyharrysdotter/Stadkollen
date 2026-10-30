@@ -93,6 +93,13 @@ textarea{min-height:90px;font-size:.8rem}
 .note{font-size:.85rem;color:var(--muted)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);border-radius:999px;padding:10px 10px 10px 16px;display:flex;gap:12px;align-items:center;z-index:30;max-width:calc(100% - 32px);font-size:.95rem}
 .toast button{background:none;border:0;color:var(--bg);font-weight:700;text-decoration:underline;padding:4px 8px}
+.today{margin-top:10px}
+.today .list{border:1.5px solid var(--accent)}
+.today-head{display:flex;flex-direction:column;gap:2px;margin:12px 0 8px}
+.today-head h2{margin:0;color:var(--accent)}
+.row.is-done .name{text-decoration:line-through;color:var(--muted)}
+.done.filled{background:var(--accent);border-color:var(--accent)}
+.done.filled svg{stroke:var(--accent-ink)}
 .total{font-family:var(--display);font-size:1rem;color:var(--muted);margin:10px 2px 0}
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .35s ease}}
 </style>
@@ -121,6 +128,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">"
 // Jennys plan: kök, badrum, vardagsrum (sovplats), hall, katt, egen tvättmaskin, växter, balkong, förvaring i dotterns rum.
 // Dagliga vanor (disk, bädda, kattlåda) ligger utanför, så appen visar det som annars glöms bort.
 const SUGGEST = {
+  "Plock & ordning":[["Plocka undan en hög: ge varje sak en plats eller släng den",1,5,"plock"],["Töm köksbänken på det som inte hör dit",3,5,"plock"],["Rensa en yta: bord, byrå eller hylla",7,10,"plock"],["Rensa en låda",7,10,"plock"],["Rensa ett skåp",14,15,"plock"],["Fyll en kasse till återvinning eller second hand",30,15,"plock"]],
   "Kök":[["Ta ut sopor och återvinning",3,5],["Torka av spisen",7,5],["Kolla kylen och släng gammalt",7,5],["Moppa köksgolvet",10,10],["Rengör mikron",14,5],["Torka luckor och handtag",30,10],["Torka ur kylskåpet",30,15],["Rengör diskmaskinens filter",30,5],["Avkalka vattenkokaren",60,5]],
   "Badrum":[["Rengör toaletten",7,5],["Handfat, kran och spegel",7,5],["Byt handdukar",7,2],["Moppa golvet",10,5],["Skura duschen",14,15],["Tvätta badrumsmattan",30,5],["Rensa golvbrunnen",30,10]],
   "Vardagsrum":[["Dammsuga",5,10],["Byt sängkläder",14,10],["Damma ytor",14,10],["Tvätta pläd och kuddfodral",30,5],["Dammsuga under sängen",30,10],["Vädra och vänd madrassen",90,10],["Rensa garderoben under sängen",90,20]],
@@ -205,11 +213,14 @@ function addSuggestions(replace){
   for (const [rn, list] of Object.entries(SUGGEST)){
     let room = S.rooms.find(r => r.name === rn);
     if (!room){ room = {id:id(), name:rn}; S.rooms.push(room); }
-    list.forEach(([name, days, min]) => {
+    list.forEach(([name, days, min, kind]) => {
       if (S.tasks.some(t => t.roomId === room.id && t.name === name)) return;
       const f = 0.15 + ((i++ * 0.37) % 0.8); // sprider startläget så att allt inte blir dags samma dag
-      S.tasks.push({id:id(), roomId:room.id, name, days, min, last: t0 - days*DAY*f});
+      const t = {id:id(), roomId:room.id, name, days, min, last: t0 - days*DAY*f};
+      if (kind) t.kind = kind;
+      S.tasks.push(t);
     });
+    S.today = null;
   }
   save(); render();
 }
@@ -238,13 +249,64 @@ function taskRow(t, showRoom = true){
 }
 function sorted(list){ return [...list].sort((a,b) => ratio(b) - ratio(a)); }
 
+// ---------- dagens förslag ----------
+const DAILY_MIN = 15;
+function dayKey(){ const d = new Date(); return d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate(); }
+function dayStart(){ const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+const doneToday = t => t.last >= dayStart();
+function pickToday(){
+  const all = sorted(S.tasks.filter(t => !doneToday(t)));
+  const plock = all.find(t => t.kind === "plock");
+  const ids = plock ? [plock.id] : [];
+  let sum = plock ? (plock.min || 5) : 0;
+  const base = ids.length;
+  for (const t of all){
+    if (t.kind === "plock") continue;
+    if (ids.length >= 4) break;
+    if (ids.length > base && ratio(t) < .75) break; // alltid minst en syssla, fler bara om de är dags
+    if (ids.length === base || sum + (t.min || 5) <= DAILY_MIN){ ids.push(t.id); sum += t.min || 5; }
+  }
+  return ids;
+}
+function todayList(){
+  const key = dayKey();
+  if (!S.today || S.today.date !== key){ S.today = {date:key, ids:pickToday()}; save(); }
+  const list = S.today.ids.map(i => S.tasks.find(t => t.id === i)).filter(Boolean);
+  if (list.length !== S.today.ids.length){ S.today.ids = list.map(t => t.id); save(); }
+  return list;
+}
+function addOneMore(){
+  const have = new Set(S.today.ids);
+  const next = sorted(S.tasks.filter(t => !have.has(t.id) && !doneToday(t)))[0];
+  if (next){ S.today.ids.push(next.id); save(); render(); }
+}
+function todayRow(t){
+  if (!doneToday(t)) return taskRow(t);
+  return `<div class="row is-done"><button class="main" data-edit="${t.id}" aria-label="Ändra ${esc(t.name)}">
+      <div class="name">${esc(t.name)}</div><div class="meta"><span>${esc(roomName(t.roomId))}</span><span class="when t-ok">klart</span></div></button>
+    <span class="done filled" aria-hidden="true">${ICON_CHECK}</span></div>`;
+}
+function viewToday(){
+  const list = todayList();
+  if (!list.length) return "";
+  const left = list.filter(t => !doneToday(t));
+  const mins = left.reduce((s,t) => s + (t.min || 5), 0);
+  const line = left.length ? `${left.length} kvar, ungefär ${mins} min. En plockuppgift ingår varje dag.` : "Dagens är klart. Resten kan vänta till i morgon.";
+  return `<section class="today"><div class="today-head"><h2>Idag</h2><span class="note">${line}</span></div>
+    <div class="list">${list.map(todayRow).join("")}</div>
+    ${!left.length ? `<div class="btnrow" style="justify-content:flex-start;margin-top:10px"><button class="btn ghost" data-onemore>Jag tar en till</button></div>` : ""}</section>`;
+}
+
 function viewNu(){
   if (!S.rooms.length) return emptyState();
-  const all = sorted(S.tasks);
+  const todayHtml = S.pausedAt ? "" : viewToday();
+  const inToday = new Set((!S.pausedAt && S.today && S.today.ids) || []);
+  const all = sorted(S.tasks.filter(t => !inToday.has(t.id)));
   const due = all.filter(t => ratio(t) >= 1), soon = all.filter(t => { const r = ratio(t); return r >= .75 && r < 1; }), later = all.filter(t => ratio(t) < .75);
   const line = due.length ? `${due.length} ${due.length === 1 ? "syssla är" : "sysslor är"} dags nu` : soon.length ? "Inget är försenat. Några saker närmar sig." : "Allt är under kontroll.";
   const sec = (h, l) => l.length ? `<h2>${h}</h2><div class="list">${l.map(t => taskRow(t)).join("")}</div>` : "";
   return `<header><h1>Städkollen</h1>${gear()}</header><p class="sub">${line}</p>${pauseBanner()}
+    ${S.pausedAt ? "" : todayHtml}
     ${sec("Dags nu", due)}${sec("Snart", soon)}${sec("Senare", later)}
     ${!S.tasks.length ? `<div class="empty"><p>Inga sysslor än. Tryck på plus för att lägga till.</p></div>` : ""}`;
 }
@@ -416,6 +478,7 @@ document.addEventListener("click", e => {
   else if (d.add !== undefined) taskSheet(null, openRoom);
   else if (d.settings !== undefined) settingsSheet();
   else if (d.unpause !== undefined) setPause(false);
+  else if (d.onemore !== undefined) addOneMore();
   else if (b.id === "fab") taskSheet(null, tab === "rum" ? openRoom : null);
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
