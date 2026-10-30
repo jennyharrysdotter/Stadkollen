@@ -186,7 +186,7 @@ async function connect(){
     if (!db || !uid) return;
     dbRef = db.doc("data/users/" + uid + "/state");
     const snap = await dbRef.get();
-    if (snap.exists && snap.data().rooms) { S = JSON.parse(JSON.stringify(snap.data())); saveLocal(); }
+    if (snap.exists && snap.data().rooms) { S = JSON.parse(JSON.stringify(snap.data())); if (ensurePlock()) save(); else saveLocal(); }
     else if (S.rooms.length) { await dbRef.set(JSON.parse(JSON.stringify(S))); }
     store = "konto";
     render();
@@ -245,6 +245,20 @@ function addSuggestions(replace){
     S.today = null;
   }
   save(); render();
+}
+// Lägger till plockuppgifterna i planer som skapades innan de fanns.
+function ensurePlock(){
+  if (!S.rooms.length || S.tasks.some(t => t.kind === "plock")) return false;
+  let room = S.rooms.find(r => r.name === "Plock & ordning");
+  if (!room){ room = {id:id(), name:"Plock & ordning"}; S.rooms.unshift(room); }
+  const t0 = Date.now();
+  SUGGEST["Plock & ordning"].forEach(([name, days, min, kind], i) => {
+    const old = S.tasks.find(t => t.name === name);
+    if (old){ old.kind = kind; return; }
+    S.tasks.push({id:id(), roomId:room.id, name, days, min, kind, last: t0 - days*DAY*(i === 0 ? 1 : 0.3 + i*0.1)});
+  });
+  if (S.today) S.today = null;
+  return true;
 }
 function setPause(on){
   if (on && !S.pausedAt) S.pausedAt = Date.now();
@@ -514,7 +528,7 @@ document.addEventListener("click", e => {
 document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("#layer").innerHTML) render(); });
 
-loadLocal(); render(); connect();
+loadLocal(); if (ensurePlock()) saveLocal(); render(); connect();
 </script>
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
