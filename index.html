@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f6f66">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Städkollen</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: en kolumn, mobil först. Lista sorterad efter behov, mätare per syssla, flikrad nederst. */
+:root{
+  --bg:#eef2f1; --surface:#ffffff; --ink:#17201f; --muted:#5d6b69; --line:#d6dfdd;
+  --accent:#1f6f66; --accent-ink:#ffffff; --track:#e2e9e7;
+  --ok:#3f9a5b; --warn:#c98d12; --due:#c8443a;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Figtree", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101615; --surface:#18201f; --ink:#e6eeec; --muted:#93a3a0; --line:#2a3533;
+  --accent:#5cc2b3; --accent-ink:#0d1716; --track:#26302e;
+  --ok:#5bbf7a; --warn:#e8b54a; --due:#ef6b5f; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#101615; --surface:#18201f; --ink:#e6eeec; --muted:#93a3a0; --line:#2a3533;
+  --accent:#5cc2b3; --accent-ink:#0d1716; --track:#26302e;
+  --ok:#5bbf7a; --warn:#e8b54a; --due:#ef6b5f; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 96px}
+.wrap{max-width:560px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:18px 8px}
+h1{font-family:var(--display);font-weight:700;font-size:1.75rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:22px 0 8px}
+.sub{color:var(--muted);margin:0 0 6px;font-size:.95rem}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.iconbtn{background:none;border:1px solid var(--line);border-radius:999px;width:40px;height:40px;display:grid;place-items:center}
+.iconbtn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8}
+.banner{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:.95rem;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.list{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .main{min-width:0;background:none;border:0;text-align:left;padding:0}
+.row .name{font-weight:600;overflow-wrap:anywhere}
+.row .meta{color:var(--muted);font-size:.85rem;display:flex;justify-content:space-between;gap:8px;margin-top:2px}
+.row .meta .when{font-variant-numeric:tabular-nums;white-space:nowrap}
+.meter{height:6px;background:var(--track);border-radius:3px;margin-top:8px;overflow:hidden}
+.meter i{display:block;height:100%;border-radius:3px}
+.s-ok{background:var(--ok)} .s-warn{background:var(--warn)} .s-due{background:var(--due)}
+.t-ok{color:var(--ok)} .t-warn{color:var(--warn)} .t-due{color:var(--due)}
+.done{width:44px;height:44px;border-radius:999px;border:1.5px solid var(--line);background:none;display:grid;place-items:center}
+.done svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2.4}
+.done:active{background:var(--accent)} .done:active svg{stroke:var(--accent-ink)}
+.rooms{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.room{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left;min-width:0}
+.room b{font-family:var(--display);font-weight:600;font-size:1.1rem;display:block;overflow-wrap:anywhere}
+.room small{color:var(--muted);font-size:.85rem}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:22px 18px;text-align:center;color:var(--muted)}
+.empty p{margin:0 0 14px}
+.btn{border:0;border-radius:999px;padding:11px 18px;font-weight:600;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--ink)}
+.btn.danger{background:none;border:1px solid var(--due);color:var(--due)}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-weight:600;font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.back{background:none;border:0;color:var(--accent);font-weight:600;padding:6px 0}
+.fab{position:fixed;right:max(18px,calc(env(safe-area-inset-right,0px) + 18px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:18px;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 6px 18px rgb(0 0 0 / .18)}
+.fab svg{width:26px;height:26px;stroke:currentColor;stroke-width:2.4;fill:none}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+nav .in{display:flex;max-width:560px;width:100%}
+nav button{flex:1;background:none;border:0;padding:10px 4px 12px;color:var(--muted);font-size:.8rem;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
+nav button[aria-current="page"]{color:var(--accent)}
+.sheet-bg{position:fixed;inset:0;background:rgb(0 0 0 / .4);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet{background:var(--bg);width:100%;max-width:560px;border-radius:20px 20px 0 0;max-height:92%;overflow:auto;
+  padding:18px max(16px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet h3{font-family:var(--display);font-size:1.3rem;margin:0 0 14px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:.85rem;color:var(--muted);font-weight:600}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+textarea{min-height:90px;font-size:.8rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sheet .btnrow{justify-content:flex-start;margin-top:6px}
+.switch{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.switch input{width:auto;transform:scale(1.3)}
+.note{font-size:.85rem;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);border-radius:999px;padding:10px 10px 10px 16px;display:flex;gap:12px;align-items:center;z-index:30;max-width:calc(100% - 32px);font-size:.95rem}
+.toast button{background:none;border:0;color:var(--bg);font-weight:700;text-decoration:underline;padding:4px 8px}
+.total{font-family:var(--display);font-size:1rem;color:var(--muted);margin:10px 2px 0}
+@media (prefers-reduced-motion:no-preference){.meter i{transition:width .35s ease}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap" id="app"></div>
+<button class="fab" id="fab" aria-label="Lägg till syssla" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+<nav><div class="in">
+  <button data-tab="nu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Att göra</button>
+  <button data-tab="rum"><svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v8H4z"/><path d="M10 19v-5h4v5"/></svg>Rum</button>
+  <button data-tab="fokus"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9v4l2.5 2M10 3h4"/></svg>Snabbstäd</button>
+</div></nav>
+<div id="layer"></div>
+
+<script>
+const DAY = 86400000;
+const KEY = "stadkollen-v1";
+let S = {rooms:[], tasks:[], pausedAt:null};
+let tab = "nu", openRoom = null, focusMin = 15, store = "local", dbRef = null;
+const $ = s => document.querySelector(s);
+const id = () => Math.random().toString(36).slice(2,10);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// Jennys plan: kök, badrum, vardagsrum (sovplats), hall, katt, egen tvättmaskin, växter, balkong, förvaring i dotterns rum.
+// Dagliga vanor (disk, bädda, kattlåda) ligger utanför, så appen visar det som annars glöms bort.
+const SUGGEST = {
+  "Kök":[["Ta ut sopor och återvinning",3,5],["Torka av spisen",7,5],["Kolla kylen och släng gammalt",7,5],["Moppa köksgolvet",10,10],["Rengör mikron",14,5],["Torka luckor och handtag",30,10],["Torka ur kylskåpet",30,15],["Rengör diskmaskinens filter",30,5],["Avkalka vattenkokaren",60,5]],
+  "Badrum":[["Rengör toaletten",7,5],["Handfat, kran och spegel",7,5],["Byt handdukar",7,2],["Moppa golvet",10,5],["Skura duschen",14,15],["Tvätta badrumsmattan",30,5],["Rensa golvbrunnen",30,10]],
+  "Vardagsrum":[["Dammsuga",5,10],["Byt sängkläder",14,10],["Damma ytor",14,10],["Tvätta pläd och kuddfodral",30,5],["Dammsuga under sängen",30,10],["Vädra och vänd madrassen",90,10],["Rensa garderoben under sängen",90,20]],
+  "Hall":[["Dammsuga och torka golvet",10,10],["Sortera skor och ytterkläder",14,5],["Torka dörrhandtag och strömbrytare",30,5]],
+  "Katten":[["Ludda kattens favoritplatser",7,5],["Byt all sand och tvätta lådan",14,15]],
+  "Tvätt":[["Tvätta en maskin",3,5],["Vik och lägg in tvätt",3,10],["Rengör tvättmaskinens filter och fack",60,15]],
+  "Växter":[["Vattna krukväxterna",7,5],["Torka damm från bladen",60,10]],
+  "Balkong":[["Vattna växterna på balkongen",7,5],["Dammsuga mattan",14,5],["Torka av bord och möbler",30,10],["Rengör grillen",30,15],["Sopa och torka golvet runt mattan",30,10],["Skaka eller tvätta mattan",90,10],["Putsa inglasningen invändigt",90,30]],
+  "Förvaring":[["Rensa garderoben i dotterns rum",90,30]],
+  "Hela hemmet":[["Damma lister, lampor och tavlor",60,20],["Putsa fönster",180,60]]
+};
+
+// ---------- tid & status ----------
+const now = () => S.pausedAt || Date.now();
+function ratio(t){ return (now() - t.last) / (t.days * DAY); }
+function level(r){ return r >= 1 ? "due" : r >= .75 ? "warn" : "ok"; }
+function whenText(t){
+  const left = t.days - (now() - t.last)/DAY;
+  if (left >= 1) return "om " + Math.round(left) + " d";
+  if (left > -1) return "idag";
+  return Math.round(-left) + " d över";
+}
+function every(d){
+  if (d === 1) return "varje dag";
+  if (d % 30 === 0) return d === 30 ? "varje månad" : "var " + d/30 + ":e månad";
+  if (d % 7 === 0) return d === 7 ? "varje vecka" : "var " + d/7 + ":e vecka";
+  return "var " + d + ":e dag";
+}
+const roomName = rid => (S.rooms.find(r => r.id === rid) || {}).name || "";
+
+// ---------- lagring ----------
+function saveLocal(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+let saveTimer = null, saving = Promise.resolve();
+function save(){
+  saveLocal();
+  if (!dbRef) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const snap = JSON.parse(JSON.stringify(S));
+    saving = saving.then(() => dbRef.set(snap)).catch(() => {});
+  }, 700);
+}
+function loadLocal(){ try{ const v = JSON.parse(localStorage.getItem(KEY)); if (v && v.rooms) S = v; }catch(e){} }
+
+async function connect(){
+  try{
+    const db = await window.claude?.use?.("db");
+    const user = await window.claude?.use?.("user");
+    const uid = user ? await user.id() : null;
+    if (!db || !uid) return;
+    dbRef = db.doc("data/users/" + uid + "/state");
+    const snap = await dbRef.get();
+    if (snap.exists && snap.data().rooms) { S = JSON.parse(JSON.stringify(snap.data())); saveLocal(); }
+    else if (S.rooms.length) { await dbRef.set(JSON.parse(JSON.stringify(S))); }
+    store = "konto";
+    render();
+  }catch(e){ dbRef = null; }
+}
+
+// ---------- åtgärder ----------
+let toastTimer;
+function markDone(tid, when){
+  const t = S.tasks.find(x => x.id === tid); if (!t) return;
+  const prev = t.last;
+  t.last = when || now();
+  save(); render();
+  showToast("Klart: " + t.name, () => { t.last = prev; save(); render(); });
+}
+function showToast(msg, undo){
+  clearTimeout(toastTimer);
+  const el = document.createElement("div");
+  el.className = "toast"; el.setAttribute("role","status");
+  el.innerHTML = `<span>${esc(msg)}</span>` + (undo ? `<button>Ångra</button>` : "");
+  document.querySelectorAll(".toast").forEach(x => x.remove());
+  document.body.appendChild(el);
+  if (undo) el.querySelector("button").onclick = () => { undo(); el.remove(); };
+  toastTimer = setTimeout(() => el.remove(), 5000);
+}
+function addSuggestions(replace){
+  if (replace){ S.rooms = []; S.tasks = []; S.pausedAt = null; }
+  const t0 = Date.now(); let i = 0;
+  for (const [rn, list] of Object.entries(SUGGEST)){
+    let room = S.rooms.find(r => r.name === rn);
+    if (!room){ room = {id:id(), name:rn}; S.rooms.push(room); }
+    list.forEach(([name, days, min]) => {
+      if (S.tasks.some(t => t.roomId === room.id && t.name === name)) return;
+      const f = 0.15 + ((i++ * 0.37) % 0.8); // sprider startläget så att allt inte blir dags samma dag
+      S.tasks.push({id:id(), roomId:room.id, name, days, min, last: t0 - days*DAY*f});
+    });
+  }
+  save(); render();
+}
+function setPause(on){
+  if (on && !S.pausedAt) S.pausedAt = Date.now();
+  if (!on && S.pausedAt){
+    const d = Date.now() - S.pausedAt;
+    S.tasks.forEach(t => t.last += d);
+    S.pausedAt = null;
+  }
+  save(); render();
+}
+
+// ---------- rendering ----------
+const ICON_CHECK = `<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+function taskRow(t, showRoom = true){
+  const r = ratio(t), lv = level(r);
+  return `<div class="row">
+    <button class="main" data-edit="${t.id}" aria-label="Ändra ${esc(t.name)}">
+      <div class="name">${esc(t.name)}</div>
+      <div class="meta"><span>${showRoom ? esc(roomName(t.roomId)) + " · " : ""}${every(t.days)}</span><span class="when t-${lv}">${whenText(t)}</span></div>
+      <div class="meter"><i class="s-${lv}" style="width:${Math.min(100, Math.max(4, r*100))}%"></i></div>
+    </button>
+    <button class="done" data-done="${t.id}" aria-label="Markera ${esc(t.name)} som klar">${ICON_CHECK}</button>
+  </div>`;
+}
+function sorted(list){ return [...list].sort((a,b) => ratio(b) - ratio(a)); }
+
+function viewNu(){
+  if (!S.rooms.length) return emptyState();
+  const all = sorted(S.tasks);
+  const due = all.filter(t => ratio(t) >= 1), soon = all.filter(t => { const r = ratio(t); return r >= .75 && r < 1; }), later = all.filter(t => ratio(t) < .75);
+  const line = due.length ? `${due.length} ${due.length === 1 ? "syssla är" : "sysslor är"} dags nu` : soon.length ? "Inget är försenat. Några saker närmar sig." : "Allt är under kontroll.";
+  const sec = (h, l) => l.length ? `<h2>${h}</h2><div class="list">${l.map(t => taskRow(t)).join("")}</div>` : "";
+  return `<header><h1>Städkollen</h1>${gear()}</header><p class="sub">${line}</p>${pauseBanner()}
+    ${sec("Dags nu", due)}${sec("Snart", soon)}${sec("Senare", later)}
+    ${!S.tasks.length ? `<div class="empty"><p>Inga sysslor än. Tryck på plus för att lägga till.</p></div>` : ""}`;
+}
+function viewRum(){
+  if (openRoom){
+    const room = S.rooms.find(r => r.id === openRoom);
+    if (!room){ openRoom = null; return viewRum(); }
+    const list = sorted(S.tasks.filter(t => t.roomId === room.id));
+    return `<button class="back" data-back>‹ Alla rum</button>
+      <header style="padding-top:4px"><h1>${esc(room.name)}</h1><button class="iconbtn" data-editroom="${room.id}" aria-label="Ändra rummet"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button></header>
+      ${pauseBanner()}
+      ${list.length ? `<div class="list">${list.map(t => taskRow(t, false)).join("")}</div>` : `<div class="empty"><p>Inga sysslor i ${esc(room.name)} än.</p><button class="btn" data-add>Lägg till syssla</button></div>`}`;
+  }
+  if (!S.rooms.length) return emptyState();
+  const cards = S.rooms.map(room => {
+    const ts = S.tasks.filter(t => t.roomId === room.id);
+    const avg = ts.length ? ts.reduce((s,t) => s + Math.min(1.2, ratio(t)), 0) / ts.length : 0;
+    const due = ts.filter(t => ratio(t) >= 1).length;
+    const lv = due ? "due" : level(avg);
+    return `<button class="room" data-room="${room.id}"><b>${esc(room.name)}</b>
+      <small>${ts.length ? (due ? `${due} att göra` : "Inget försenat") : "Tomt"}</small>
+      <div class="meter"><i class="s-${lv}" style="width:${Math.min(100, Math.max(4, avg*100))}%"></i></div></button>`;
+  }).join("");
+  return `<header><h1>Rum</h1>${gear()}</header>${pauseBanner()}<div class="rooms">${cards}</div>
+    <div class="btnrow" style="margin-top:16px;justify-content:flex-start"><button class="btn ghost" data-newroom>Nytt rum</button></div>`;
+}
+function viewFokus(){
+  const pool = sorted(S.tasks).filter(t => ratio(t) >= .6);
+  const pick = []; let sum = 0;
+  for (const t of pool){ const m = t.min || 5; if (sum + m <= focusMin){ pick.push(t); sum += m; } }
+  const chips = [10,15,30,45].map(m => `<button class="chip" data-min="${m}" aria-pressed="${m === focusMin}">${m} min</button>`).join("");
+  return `<header><h1>Snabbstäd</h1>${gear()}</header>
+    <p class="sub">Hur lång tid har du? Appen väljer det som behövs mest och som hinns.</p>
+    <div class="chips">${chips}</div>
+    ${pick.length ? `<div class="list">${pick.map(t => taskRow(t)).join("")}</div><p class="total">Ungefär ${sum} min</p>`
+      : `<div class="empty"><p>${S.tasks.length ? "Inget behöver göras just nu som ryms i den tiden." : "Lägg in sysslor först, så föreslår appen vad du hinner."}</p></div>`}`;
+}
+function emptyState(){
+  return `<header><h1>Städkollen</h1>${gear()}</header>
+  <div class="empty" style="margin-top:12px"><p>Varje syssla får en mätare som fylls på tills det är dags igen. När du bockar av börjar den om från noll.</p>
+  <p>Din plan är klar: kök, badrum, vardagsrummet där du sover, hall, katten, tvätten, växterna, balkongen och förvaringen.</p>
+  <div class="btnrow"><button class="btn" data-suggest>Lägg in min plan</button><button class="btn ghost" data-newroom>Börja tomt</button></div></div>`;
+}
+const gear = () => `<button class="iconbtn" data-settings aria-label="Inställningar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>`;
+const pauseBanner = () => S.pausedAt ? `<div class="banner"><span>Semesterläge: mätarna står still.</span><button class="btn ghost" data-unpause style="padding:6px 12px">Avsluta</button></div>` : "";
+
+function render(){
+  $("#app").innerHTML = tab === "nu" ? viewNu() : tab === "rum" ? viewRum() : viewFokus();
+  document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
+  $("#fab").hidden = !S.rooms.length || tab === "fokus";
+}
+
+// ---------- sheets ----------
+function sheet(html, bind){
+  const L = $("#layer");
+  L.innerHTML = `<div class="sheet-bg"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
+  const bg = L.firstChild;
+  bg.addEventListener("click", e => { if (e.target === bg) close(); });
+  bind(bg.firstChild);
+  const f = bg.querySelector("input,select,button"); if (f) f.focus();
+}
+function close(){ $("#layer").innerHTML = ""; }
+
+function taskSheet(t, roomId){
+  const isNew = !t;
+  t = t || {name:"", days:7, min:5, roomId: roomId || (S.rooms[0] || {}).id};
+  let unit = 1; if (t.days % 30 === 0) unit = 30; else if (t.days % 7 === 0) unit = 7;
+  const opts = S.rooms.map(r => `<option value="${r.id}" ${r.id === t.roomId ? "selected" : ""}>${esc(r.name)}</option>`).join("");
+  sheet(`<h3>${isNew ? "Ny syssla" : "Ändra syssla"}</h3>
+    <div class="field"><label for="f-name">Vad ska göras?</label><input id="f-name" value="${esc(t.name)}" placeholder="T.ex. Torka av kylskåpet"></div>
+    <div class="field"><label for="f-room">Rum</label><select id="f-room">${opts}</select></div>
+    <div class="two">
+      <div class="field"><label for="f-n">Hur ofta</label><input id="f-n" type="number" inputmode="numeric" min="1" value="${t.days/unit}"></div>
+      <div class="field"><label for="f-unit">&nbsp;</label><select id="f-unit">
+        <option value="1" ${unit===1?"selected":""}>dagar</option><option value="7" ${unit===7?"selected":""}>veckor</option><option value="30" ${unit===30?"selected":""}>månader</option></select></div>
+    </div>
+    <div class="field"><label for="f-min">Tar ungefär (minuter)</label><input id="f-min" type="number" inputmode="numeric" min="1" value="${t.min || 5}"></div>
+    ${isNew ? `<div class="field"><label for="f-state">Hur ser det ut nu?</label><select id="f-state"><option value="0">Nyss gjort</option><option value=".5" selected>Halvvägs</option><option value="1">Dags nu</option></select></div>` : ""}
+    <div class="btnrow"><button class="btn" id="f-save">Spara</button><button class="btn ghost" id="f-cancel">Avbryt</button></div>
+    ${isNew ? "" : `<h2>Gjorde du det tidigare?</h2><div class="btnrow"><button class="btn ghost" id="f-yday">Klar igår</button><button class="btn ghost" id="f-2d">Klar i förrgår</button></div>
+    <h2>Ta bort</h2><div class="btnrow"><button class="btn danger" id="f-del">Ta bort sysslan</button></div>`}
+  `, el => {
+    el.querySelector("#f-cancel").onclick = close;
+    el.querySelector("#f-save").onclick = () => {
+      const name = el.querySelector("#f-name").value.trim();
+      if (!name){ el.querySelector("#f-name").focus(); el.querySelector("#f-name").placeholder = "Skriv vad som ska göras"; return; }
+      const days = Math.max(1, Math.round(+el.querySelector("#f-n").value || 1) * +el.querySelector("#f-unit").value);
+      const data = {name, days, roomId: el.querySelector("#f-room").value, min: Math.max(1, Math.round(+el.querySelector("#f-min").value || 5))};
+      if (isNew) S.tasks.push({id:id(), ...data, last: now() - days*DAY*(+el.querySelector("#f-state").value)});
+      else Object.assign(S.tasks.find(x => x.id === t.id), data);
+      save(); close(); render();
+    };
+    if (!isNew){
+      el.querySelector("#f-yday").onclick = () => { close(); markDone(t.id, now() - DAY); };
+      el.querySelector("#f-2d").onclick = () => { close(); markDone(t.id, now() - 2*DAY); };
+      const del = el.querySelector("#f-del");
+      del.onclick = () => {
+        if (del.dataset.sure){ S.tasks = S.tasks.filter(x => x.id !== t.id); save(); close(); render(); }
+        else { del.dataset.sure = 1; del.textContent = "Tryck igen för att ta bort"; }
+      };
+    }
+  });
+}
+function roomSheet(room){
+  const isNew = !room;
+  sheet(`<h3>${isNew ? "Nytt rum" : "Ändra rum"}</h3>
+    <div class="field"><label for="r-name">Namn</label><input id="r-name" value="${esc(room ? room.name : "")}" placeholder="T.ex. Tvättstuga"></div>
+    <div class="btnrow"><button class="btn" id="r-save">Spara</button><button class="btn ghost" id="r-cancel">Avbryt</button></div>
+    ${isNew ? "" : `<h2>Ta bort</h2><p class="note">Rummets sysslor tas också bort.</p><div class="btnrow"><button class="btn danger" id="r-del">Ta bort rummet</button></div>`}
+  `, el => {
+    el.querySelector("#r-cancel").onclick = close;
+    el.querySelector("#r-save").onclick = () => {
+      const name = el.querySelector("#r-name").value.trim(); if (!name) return el.querySelector("#r-name").focus();
+      if (isNew){ const r = {id:id(), name}; S.rooms.push(r); tab = "rum"; openRoom = r.id; }
+      else room.name = name;
+      save(); close(); render();
+    };
+    if (!isNew){
+      const del = el.querySelector("#r-del");
+      del.onclick = () => {
+        if (del.dataset.sure){ S.rooms = S.rooms.filter(r => r.id !== room.id); S.tasks = S.tasks.filter(t => t.roomId !== room.id); openRoom = null; save(); close(); render(); }
+        else { del.dataset.sure = 1; del.textContent = "Tryck igen för att ta bort"; }
+      };
+    }
+  });
+}
+function settingsSheet(){
+  sheet(`<h3>Inställningar</h3>
+    <label class="switch" for="s-pause"><span><b>Semesterläge</b><br><span class="note">Mätarna står still medan du är borta.</span></span><input type="checkbox" id="s-pause" ${S.pausedAt ? "checked" : ""}></label>
+    ${S.rooms.length ? `<div class="btnrow" style="margin-bottom:12px"><button class="btn ghost" id="s-sugg">Lägg till det som saknas från min plan</button><button class="btn danger" id="s-reset">Börja om med min plan</button></div>` : ""}
+    <h2>Säkerhetskopia</h2>
+    <p class="note">${store === "konto" ? "Allt sparas i ditt Claude-konto och följer med till andra enheter där du är inloggad." : "Just nu sparas allt bara i den här webbläsaren."} Kopiera texten nedan för en extra kopia, eller klistra in en kopia och tryck Återställ.</p>
+    <div class="field"><textarea id="s-json" aria-label="Säkerhetskopia">${esc(JSON.stringify(S))}</textarea></div>
+    <div class="btnrow"><button class="btn ghost" id="s-copy">Kopiera</button><button class="btn ghost" id="s-restore">Återställ</button><button class="btn" id="s-close">Stäng</button></div>
+    <p class="note" id="s-msg" aria-live="polite"></p>
+  `, el => {
+    el.querySelector("#s-close").onclick = close;
+    el.querySelector("#s-pause").onchange = e => setPause(e.target.checked);
+    const sg = el.querySelector("#s-sugg"); if (sg) sg.onclick = () => { addSuggestions(); close(); };
+    const rs = el.querySelector("#s-reset");
+    if (rs) rs.onclick = () => {
+      if (rs.dataset.sure){ addSuggestions(true); close(); showToast("Din plan är inlagd"); }
+      else { rs.dataset.sure = 1; rs.textContent = "Tryck igen: allt nuvarande ersätts"; }
+    };
+    const ta = el.querySelector("#s-json"), msg = el.querySelector("#s-msg");
+    el.querySelector("#s-copy").onclick = () => {
+      navigator.clipboard.writeText(ta.value).then(() => msg.textContent = "Kopierat.", () => { ta.select(); msg.textContent = "Texten är markerad. Kopiera den själv."; });
+    };
+    el.querySelector("#s-restore").onclick = () => {
+      try{ const v = JSON.parse(ta.value); if (!Array.isArray(v.rooms) || !Array.isArray(v.tasks)) throw 0; S = v; save(); close(); render(); showToast("Återställt"); }
+      catch(e){ msg.textContent = "Texten gick inte att läsa. Klistra in hela kopian och försök igen."; }
+    };
+  });
+}
+
+// ---------- händelser ----------
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.closest(".sheet")) return;
+  const d = b.dataset;
+  if (d.tab){ tab = d.tab; openRoom = null; render(); window.scrollTo(0,0); }
+  else if (d.done) markDone(d.done);
+  else if (d.edit) taskSheet(S.tasks.find(t => t.id === d.edit));
+  else if (d.room){ openRoom = d.room; render(); window.scrollTo(0,0); }
+  else if (d.back !== undefined){ openRoom = null; render(); }
+  else if (d.min){ focusMin = +d.min; render(); }
+  else if (d.suggest !== undefined) addSuggestions();
+  else if (d.newroom !== undefined) roomSheet();
+  else if (d.editroom) roomSheet(S.rooms.find(r => r.id === d.editroom));
+  else if (d.add !== undefined) taskSheet(null, openRoom);
+  else if (d.settings !== undefined) settingsSheet();
+  else if (d.unpause !== undefined) setPause(false);
+  else if (b.id === "fab") taskSheet(null, tab === "rum" ? openRoom : null);
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("#layer").innerHTML) render(); });
+
+loadLocal(); render(); connect();
+</script>
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+</script>
+</body>
+</html>
