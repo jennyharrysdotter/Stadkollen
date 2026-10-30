@@ -100,6 +100,7 @@ textarea{min-height:90px;font-size:.8rem}
 .row.is-done .name{text-decoration:line-through;color:var(--muted)}
 .done.filled{background:var(--accent);border-color:var(--accent)}
 .done.filled svg{stroke:var(--accent-ink)}
+.must{display:inline-block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent-ink);background:var(--accent);border-radius:4px;padding:1px 6px;margin-right:4px;vertical-align:2px}
 .acts{display:flex;align-items:center;gap:8px}
 .later{height:44px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--muted);font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:4px;padding:0 10px}
 .later svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
@@ -262,7 +263,7 @@ function taskRow(t, showRoom = true, later = false){
   const r = ratio(t), lv = level(r), sn = isSnoozed(t);
   return `<div class="row${later ? " has-later" : ""}">
     <button class="main" data-edit="${t.id}" aria-label="Ändra ${esc(t.name)}">
-      <div class="name">${esc(t.name)}</div>
+      <div class="name">${t.kind === "plock" && later === false && S.today && S.today.ids.includes(t.id) && !doneToday(t) ? `<span class="must">Dagens plock</span> ` : ""}${esc(t.name)}</div>
       <div class="meta"><span>${showRoom ? esc(roomName(t.roomId)) + " · " : ""}${every(t.days)}</span><span class="when ${sn ? "" : "t-" + lv}">${sn ? snoozeText(t) : whenText(t)}</span></div>
       <div class="meter"><i class="s-${lv}" style="width:${Math.min(100, Math.max(4, r*100))}%"></i></div>
     </button>
@@ -304,7 +305,7 @@ function addOneMore(){
   if (next){ S.today.ids.push(next.id); save(); render(); }
 }
 function todayRow(t){
-  if (!doneToday(t)) return taskRow(t, true, true);
+  if (!doneToday(t)) return taskRow(t, true, t.kind !== "plock");
   return `<div class="row is-done"><button class="main" data-edit="${t.id}" aria-label="Ändra ${esc(t.name)}">
       <div class="name">${esc(t.name)}</div><div class="meta"><span>${esc(roomName(t.roomId))}</span><span class="when t-ok">klart</span></div></button>
     <span class="done filled" aria-hidden="true">${ICON_CHECK}</span></div>`;
@@ -314,7 +315,8 @@ function viewToday(){
   if (!list.length) return "";
   const left = list.filter(t => !doneToday(t));
   const mins = left.reduce((s,t) => s + (t.min || 5), 0);
-  const line = left.length ? `${left.length} kvar, ungefär ${mins} min. En plockuppgift ingår varje dag.` : "Dagens är klart. Resten kan vänta till i morgon.";
+  const plockLeft = left.some(t => t.kind === "plock");
+  const line = left.length ? `${left.length} kvar, ungefär ${mins} min.${plockLeft ? " Plocket går inte att skjuta upp." : ""}` : "Dagens är klart. Resten kan vänta till i morgon.";
   return `<section class="today"><div class="today-head"><h2>Idag</h2><span class="note">${line}</span></div>
     <div class="list">${list.map(todayRow).join("")}</div>
     ${!left.length ? `<div class="btnrow" style="justify-content:flex-start;margin-top:10px"><button class="btn ghost" data-onemore>Jag tar en till</button></div>` : ""}</section>`;
@@ -410,7 +412,7 @@ function taskSheet(t, roomId){
     <div class="field"><label for="f-min">Tar ungefär (minuter)</label><input id="f-min" type="number" inputmode="numeric" min="1" value="${t.min || 5}"></div>
     ${isNew ? `<div class="field"><label for="f-state">Hur ser det ut nu?</label><select id="f-state"><option value="0">Nyss gjort</option><option value=".5" selected>Halvvägs</option><option value="1">Dags nu</option></select></div>` : ""}
     <div class="btnrow"><button class="btn" id="f-save">Spara</button><button class="btn ghost" id="f-cancel">Avbryt</button></div>
-    ${isNew ? "" : `<h2>Skjut upp</h2><div class="btnrow">${isSnoozed(t) ? `<button class="btn ghost" id="f-unsnooze">Ta tillbaka nu</button>` : ""}<button class="btn ghost" data-sn="1">I morgon</button><button class="btn ghost" data-sn="3">3 dagar</button><button class="btn ghost" data-sn="7">En vecka</button></div>
+    ${isNew || t.kind === "plock" ? "" : `<h2>Skjut upp</h2><div class="btnrow">${isSnoozed(t) ? `<button class="btn ghost" id="f-unsnooze">Ta tillbaka nu</button>` : ""}<button class="btn ghost" data-sn="1">I morgon</button><button class="btn ghost" data-sn="3">3 dagar</button><button class="btn ghost" data-sn="7">En vecka</button></div>
     <h2>Gjorde du det tidigare?</h2><div class="btnrow"><button class="btn ghost" id="f-yday">Klar igår</button><button class="btn ghost" id="f-2d">Klar i förrgår</button></div>
     <h2>Ta bort</h2><div class="btnrow"><button class="btn danger" id="f-del">Ta bort sysslan</button></div>`}
   `, el => {
